@@ -1695,7 +1695,7 @@ public class Manager implements Closeable {
 
         var hasCaughtUpWithOldMessages = false;
 
-        while (true) {
+        while (!Thread.interrupted()) {
             SignalServiceEnvelope envelope;
             SignalServiceContent content = null;
             Exception exception = null;
