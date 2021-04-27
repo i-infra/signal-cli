@@ -24,6 +24,7 @@ import org.asamk.signal.manager.RegistrationManager;
 import org.asamk.signal.manager.config.ServiceConfig;
 import org.asamk.signal.manager.config.ServiceEnvironment;
 import org.asamk.signal.util.IOUtils;
+import org.freedesktop.dbus.connections.impl.DirectConnection;
 import org.freedesktop.dbus.connections.impl.DBusConnection;
 import org.freedesktop.dbus.exceptions.DBusException;
 import org.slf4j.Logger;
@@ -269,8 +270,10 @@ public class App {
             } else {
                 busType = DBusConnection.DBusBusType.SESSION;
             }
-            try (var dBusConn = DBusConnection.getConnection(busType)) {
-                var ts = dBusConn.getRemoteObject(DbusConfig.getBusname(),
+            var dBusConnName = DirectConnection.createDynamicSession();
+            try (var dBusConn = new DirectConnection(dBusConnName)) {
+//            try (var dBusConn = DBusConnection.getConnection(busType)) {
+                var ts = dBusConn.getRemoteObject(//DbusConfig.getBusname(),
                         DbusConfig.getObjectPath(username),
                         Signal.class);
 
@@ -282,7 +285,7 @@ public class App {
         }
     }
 
-    private void handleCommand(Command command, Signal ts, DBusConnection dBusConn) throws CommandException {
+    private void handleCommand(Command command, Signal ts, DirectConnection dBusConn) throws CommandException {
         if (command instanceof ExtendedDbusCommand) {
             ((ExtendedDbusCommand) command).handleCommand(ns, ts, dBusConn);
         } else if (command instanceof DbusCommand) {

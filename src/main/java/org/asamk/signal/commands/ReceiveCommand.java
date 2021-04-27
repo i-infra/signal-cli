@@ -16,7 +16,7 @@ import org.asamk.signal.commands.exceptions.UnexpectedErrorException;
 import org.asamk.signal.json.JsonMessageEnvelope;
 import org.asamk.signal.manager.Manager;
 import org.asamk.signal.util.DateUtils;
-import org.freedesktop.dbus.connections.impl.DBusConnection;
+import org.freedesktop.dbus.connections.impl.DirectConnection;
 import org.freedesktop.dbus.exceptions.DBusException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,7 +52,7 @@ public class ReceiveCommand implements ExtendedDbusCommand, LocalCommand {
     }
 
     public void handleCommand(
-            final Namespace ns, final Signal signal, DBusConnection dbusconnection
+            final Namespace ns, final Signal signal, DirectConnection dbusconnection
     ) throws CommandException {
         var inJson = ns.get("output") == OutputType.JSON || ns.getBoolean("json");
 
