@@ -2,6 +2,14 @@
   "resources":{
   "includes":[
     {"pattern":"\\Qcom/google/i18n/phonenumbers/data/PhoneNumberMetadataProto_DE\\E"}, 
+    {"pattern":"\\Qcom/google/i18n/phonenumbers/data/PhoneNumberMetadataProto_GB\\E"}, 
+    {"pattern":"\\Qjni/x86_64-Linux/libjffi-1.2.so\\E"}, 
+    {"pattern":"\\Qjnr/constants/ConstantSet.class\\E"}, 
+    {"pattern":"\\Qjnr/constants/platform/linux/ProtocolFamily.class\\E"}, 
+    {"pattern":"\\Qjnr/constants/platform/linux/Shutdown.class\\E"}, 
+    {"pattern":"\\Qjnr/constants/platform/linux/Sock.class\\E"}, 
+    {"pattern":"\\Qjnr/constants/platform/linux/SocketLevel.class\\E"}, 
+    {"pattern":"\\Qjnr/constants/platform/linux/SocketOption.class\\E"}, 
     {"pattern":"\\Qlibsignal_jni.so\\E"}, 
     {"pattern":"\\Qlibzkgroup.so\\E"}, 
     {"pattern":"\\Qorg/asamk/signal/manager/config/ias.store\\E"}, 

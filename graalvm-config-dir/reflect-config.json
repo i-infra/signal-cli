@@ -228,6 +228,10 @@
   "allPublicMethods":true
 },
 {
+  "name":"jnr.enxio.channels.Native$LibC$jnr$ffi$1",
+  "methods":[{"name":"<init>","parameterTypes":["jnr.ffi.Runtime","jnr.ffi.provider.jffi.NativeLibrary","java.lang.Object[]"] }]
+},
+{
   "name":"jnr.ffi.Pointer",
   "allDeclaredMethods":true,
   "allPublicMethods":true
@@ -279,6 +283,10 @@
 {
   "name":"jnr.unixsocket.Native$LibC",
   "allPublicMethods":true
+},
+{
+  "name":"jnr.unixsocket.Native$LibC$jnr$ffi$0",
+  "methods":[{"name":"<init>","parameterTypes":["jnr.ffi.Runtime","jnr.ffi.provider.jffi.NativeLibrary","java.lang.Object[]"] }]
 },
 {
   "name":"jnr.unixsocket.SockAddrUnix",
@@ -1123,6 +1131,14 @@
 },
 {
   "name":"org.whispersystems.libsignal.state.SignedPreKeyStore",
+  "allDeclaredMethods":true
+},
+{
+  "name":"org.whispersystems.signalservice.api.SignalServiceProtocolStore",
+  "allDeclaredMethods":true
+},
+{
+  "name":"org.whispersystems.signalservice.api.SignalServiceSessionStore",
   "allDeclaredMethods":true
 },
 {
