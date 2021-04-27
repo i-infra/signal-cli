@@ -82,6 +82,7 @@ val assembleNativeImage by tasks.registering {
         exec {
             workingDir = File(".")
             commandLine("$graalVMHome/bin/native-image",
+		    "-H:+StaticExecutableWithDynamicLibC",
                     "-H:Path=$nativeBinaryOutputPath",
                     "-H:Name=$nativeBinaryName",
                     "-H:JNIConfigurationFiles=graalvm-config-dir/jni-config.json",
