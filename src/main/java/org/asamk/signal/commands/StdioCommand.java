@@ -13,6 +13,7 @@ import org.asamk.signal.OutputType;
 import org.asamk.signal.ReceiveMessageHandler;
 import org.asamk.signal.manager.AttachmentInvalidException;
 import org.asamk.signal.manager.Manager;
+import org.asamk.signal.json.JsonStdioCommand;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.whispersystems.signalservice.api.push.exceptions.EncapsulatedExceptions;
@@ -27,14 +28,6 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import static org.asamk.signal.util.ErrorUtils.handleAssertionError;
-
-class JsonInterface {
-
-    public String commandName;
-    public String recipient;
-    public String content;
-    public JsonNode details;
-}
 
 class InputReader implements Runnable {
     private final static Logger logger = LoggerFactory.getLogger(InputReader.class);
@@ -58,7 +51,7 @@ class InputReader implements Runnable {
             try {
                 String in = br.readLine();
                 if (in != null) {
-                    JsonInterface command = jsonProcessor.readValue(in, JsonInterface.class);
+                    JsonStdioCommand command = jsonProcessor.readValue(in, JsonStdioCommand.class);
                     if (command.commandName.equals("sendMessage")) {
                         List<String> recipients = new ArrayList<String>();
                         recipients.add(command.recipient);
