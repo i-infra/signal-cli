@@ -6,7 +6,7 @@ plugins {
     id("org.graalvm.buildtools.native") version "0.9.9"
 }
 
-version = "0.10.3"
+version = "0.10.4"
 
 java {
     sourceCompatibility = JavaVersion.VERSION_17
@@ -33,6 +33,8 @@ repositories {
 }
 
 dependencies {
+    implementation("com.squareup.okhttp3", "okhttp", "4.9.2")
+    implementation("com.squareup.okhttp3", "logging-interceptor", "4.9.2")
     implementation("org.bouncycastle", "bcprov-jdk15on", "1.70")
     implementation("com.fasterxml.jackson.core", "jackson-databind", "2.13.1")
     implementation("net.sourceforge.argparse4j", "argparse4j", "0.9.0")

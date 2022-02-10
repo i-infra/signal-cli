@@ -11,8 +11,8 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.util.List;
-
 import okhttp3.Interceptor;
+import okhttp3.logging.HttpLoggingInterceptor;
 
 public class ServiceConfig {
 
@@ -65,12 +65,16 @@ public class ServiceConfig {
     public static ServiceEnvironmentConfig getServiceEnvironmentConfig(
             ServiceEnvironment serviceEnvironment, String userAgent
     ) {
+        HttpLoggingInterceptor logging = new HttpLoggingInterceptor();
+        logging.setLevel(HttpLoggingInterceptor.Level.BODY);
         final Interceptor userAgentInterceptor = chain -> chain.proceed(chain.request()
                 .newBuilder()
                 .header("User-Agent", userAgent)
                 .build());
 
-        final var interceptors = List.of(userAgentInterceptor);
+
+        //final var interceptors = List.of(userAgentInterceptor);
+        final var interceptors = List.of(userAgentInterceptor, logging);
 
         return switch (serviceEnvironment) {
             case LIVE -> new ServiceEnvironmentConfig(LiveConfig.createDefaultServiceConfiguration(interceptors),
