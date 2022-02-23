@@ -2,15 +2,20 @@ package org.asamk.signal.manager.helper;
 
 import org.asamk.signal.manager.DeviceLinkInfo;
 import org.asamk.signal.manager.SignalDependencies;
+import org.asamk.signal.manager.api.CaptchaRequiredException;
+import org.asamk.signal.manager.api.IncorrectPinException;
 import org.asamk.signal.manager.api.InvalidDeviceLinkException;
+import org.asamk.signal.manager.api.PinLockedException;
 import org.asamk.signal.manager.config.ServiceConfig;
 import org.asamk.signal.manager.storage.SignalAccount;
 import org.asamk.signal.manager.util.KeyUtils;
+import org.asamk.signal.manager.util.NumberVerificationUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.whispersystems.libsignal.InvalidKeyException;
 import org.whispersystems.libsignal.util.guava.Optional;
 import org.whispersystems.signalservice.api.push.ACI;
+import org.whispersystems.signalservice.api.push.PNI;
 import org.whispersystems.signalservice.api.push.exceptions.AuthorizationFailedException;
 import org.whispersystems.signalservice.api.util.DeviceNameUtil;
 
@@ -51,8 +56,11 @@ public class AccountHelper {
         }
         try {
             context.getPreKeyHelper().refreshPreKeysIfNecessary();
-            if (account.getAci() == null) {
-                account.setAci(ACI.parseOrNull(dependencies.getAccountManager().getWhoAmI().getAci()));
+            if (account.getAci() == null || account.getPni() == null) {
+                checkWhoAmiI();
+            }
+            if (!account.isMasterDevice() && account.getPniIdentityKeyPair() == null) {
+                context.getSyncHelper().requestSyncPniIdentity();
             }
             updateAccountAttributes();
         } catch (AuthorizationFailedException e) {
@@ -61,16 +69,58 @@ public class AccountHelper {
         }
     }
 
+    public void checkWhoAmiI() throws IOException {
+        final var whoAmI = dependencies.getAccountManager().getWhoAmI();
+        final var number = whoAmI.getNumber();
+        final var aci = ACI.parseOrNull(whoAmI.getAci());
+        final var pni = PNI.parseOrNull(whoAmI.getPni());
+        if (number.equals(account.getNumber()) && aci.equals(account.getAci()) && pni.equals(account.getPni())) {
+            return;
+        }
+
+        updateSelfIdentifiers(number, aci, pni);
+    }
+
+    private void updateSelfIdentifiers(final String number, final ACI aci, final PNI pni) {
+        account.setNumber(number);
+        account.setAci(aci);
+        account.setPni(pni);
+        account.getRecipientStore().resolveSelfRecipientTrusted(account.getSelfRecipientAddress());
+        // TODO check and update remote storage
+        context.getUnidentifiedAccessHelper().rotateSenderCertificates();
+        dependencies.resetAfterAddressChange();
+        dependencies.getSignalWebSocket().forceNewWebSockets();
+        context.getAccountFileUpdater().updateAccountIdentifiers(account.getNumber(), account.getAci());
+    }
+
+    public void startChangeNumber(
+            String newNumber, String captcha, boolean voiceVerification
+    ) throws IOException, CaptchaRequiredException {
+        final var accountManager = dependencies.createUnauthenticatedAccountManager(newNumber, account.getPassword());
+        NumberVerificationUtils.requestVerificationCode(accountManager, captcha, voiceVerification);
+    }
+
+    public void finishChangeNumber(
+            String newNumber, String verificationCode, String pin
+    ) throws IncorrectPinException, PinLockedException, IOException {
+        final var result = NumberVerificationUtils.verifyNumber(verificationCode,
+                pin,
+                context.getPinHelper(),
+                (verificationCode1, registrationLock) -> dependencies.getAccountManager()
+                        .changeNumber(verificationCode1, newNumber, registrationLock));
+        // TODO handle response
+        updateSelfIdentifiers(newNumber, account.getAci(), PNI.parseOrThrow(result.first().getPni()));
+    }
+
     public void setDeviceName(String deviceName) {
-        final var privateKey = account.getIdentityKeyPair().getPrivateKey();
+        final var privateKey = account.getAciIdentityKeyPair().getPrivateKey();
         final var encryptedDeviceName = DeviceNameUtil.encryptDeviceName(deviceName, privateKey);
         account.setEncryptedDeviceName(encryptedDeviceName);
     }
 
     public void updateAccountAttributes() throws IOException {
         dependencies.getAccountManager()
-                .setAccountAttributes(account.getEncryptedDeviceName(),
-                        null,
+                .setAccountAttributes(null,
                         account.getLocalRegistrationId(),
                         true,
                         null,
@@ -78,19 +128,20 @@ public class AccountHelper {
                         account.getSelfUnidentifiedAccessKey(),
                         account.isUnrestrictedUnidentifiedAccess(),
                         ServiceConfig.capabilities,
-                        account.isDiscoverableByPhoneNumber());
+                        account.isDiscoverableByPhoneNumber(),
+                        account.getEncryptedDeviceName());
     }
 
     public void addDevice(DeviceLinkInfo deviceLinkInfo) throws IOException, InvalidDeviceLinkException {
-        var identityKeyPair = account.getIdentityKeyPair();
         var verificationCode = dependencies.getAccountManager().getNewDeviceVerificationCode();
 
         try {
             dependencies.getAccountManager()
                     .addDevice(deviceLinkInfo.deviceIdentifier(),
                             deviceLinkInfo.deviceKey(),
-                            identityKeyPair,
-                            Optional.of(account.getProfileKey().serialize()),
+                            account.getAciIdentityKeyPair(),
+                            account.getPniIdentityKeyPair(),
+                            account.getProfileKey(),
                             verificationCode);
         } catch (InvalidKeyException e) {
             throw new InvalidDeviceLinkException("Invalid device link", e);

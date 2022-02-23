@@ -10,6 +10,7 @@ import org.asamk.signal.ReceiveMessageHandler;
 import org.asamk.signal.commands.exceptions.CommandException;
 import org.asamk.signal.commands.exceptions.IOErrorException;
 import org.asamk.signal.commands.exceptions.UnexpectedErrorException;
+import org.asamk.signal.commands.exceptions.UserErrorException;
 import org.asamk.signal.dbus.DbusSignalControlImpl;
 import org.asamk.signal.dbus.DbusSignalImpl;
 import org.asamk.signal.json.JsonReceiveMessageHandler;
@@ -35,7 +36,6 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
@@ -240,12 +240,13 @@ public class DaemonCommand implements MultiLocalCommand, LocalCommand {
     private void runSocket(final ServerSocketChannel serverChannel, Consumer<SocketChannel> socketHandler) {
         final var thread = new Thread(() -> {
             while (true) {
+                final var connectionId = threadNumber.getAndIncrement();
                 final SocketChannel channel;
                 final String clientString;
                 try {
                     channel = serverChannel.accept();
                     clientString = channel.getRemoteAddress() + " " + IOUtils.getUnixDomainPrincipal(channel);
-                    logger.info("Accepted new client: " + clientString);
+                    logger.info("Accepted new client connection {}: {}", connectionId, clientString);
                 } catch (IOException e) {
                     logger.error("Failed to accept new socket connection", e);
                     synchronized (this) {
@@ -256,12 +257,14 @@ public class DaemonCommand implements MultiLocalCommand, LocalCommand {
                 final var connectionThread = new Thread(() -> {
                     try (final var c = channel) {
                         socketHandler.accept(c);
-                        logger.info("Connection closed: " + clientString);
                     } catch (IOException e) {
                         logger.warn("Failed to close channel", e);
+                    } catch (Throwable e) {
+                        logger.warn("Connection handler failed, closing connection", e);
                     }
+                    logger.info("Connection {} closed: {}", connectionId, clientString);
                 });
-                connectionThread.setName("daemon-connection-" + threadNumber.getAndIncrement());
+                connectionThread.setName("daemon-connection-" + connectionId);
                 connectionThread.start();
             }
         });
@@ -280,7 +283,7 @@ public class DaemonCommand implements MultiLocalCommand, LocalCommand {
 
     private void runDbusSingleAccount(
             final Manager m, final boolean isDbusSystem, final boolean noReceiveOnStart
-    ) throws UnexpectedErrorException {
+    ) throws CommandException {
         runDbus(isDbusSystem, (conn, objectPath) -> {
             try {
                 exportDbusObject(conn, objectPath, m, noReceiveOnStart).join();
@@ -291,18 +294,16 @@ public class DaemonCommand implements MultiLocalCommand, LocalCommand {
 
     private void runDbusMultiAccount(
             final MultiAccountManager c, final boolean noReceiveOnStart, final boolean isDbusSystem
-    ) throws UnexpectedErrorException {
+    ) throws CommandException {
         runDbus(isDbusSystem, (connection, objectPath) -> {
             final var signalControl = new DbusSignalControlImpl(c, objectPath);
             connection.exportObject(signalControl);
 
             c.addOnManagerAddedHandler(m -> {
                 final var thread = exportMultiAccountManager(connection, m, noReceiveOnStart);
-                if (thread != null) {
-                    try {
-                        thread.join();
-                    } catch (InterruptedException ignored) {
-                    }
+                try {
+                    thread.join();
+                } catch (InterruptedException ignored) {
                 }
             });
             c.addOnManagerRemovedHandler(m -> {
@@ -314,13 +315,11 @@ public class DaemonCommand implements MultiLocalCommand, LocalCommand {
                     }
                 } catch (DBusException ignored) {
                 }
-                connection.unExportObject(path);
             });
 
             final var initThreads = c.getManagers()
                     .stream()
                     .map(m -> exportMultiAccountManager(connection, m, noReceiveOnStart))
-                    .filter(Objects::nonNull)
                     .toList();
 
             for (var t : initThreads) {
@@ -334,48 +333,47 @@ public class DaemonCommand implements MultiLocalCommand, LocalCommand {
 
     private void runDbus(
             final boolean isDbusSystem, DbusRunner dbusRunner
-    ) throws UnexpectedErrorException {
+    ) throws CommandException {
         DBusConnection.DBusBusType busType;
         if (isDbusSystem) {
             busType = DBusConnection.DBusBusType.SYSTEM;
         } else {
             busType = DBusConnection.DBusBusType.SESSION;
         }
+        DBusConnection conn;
         try {
-            var conn = DBusConnection.getConnection(busType);
+            conn = DBusConnection.getConnection(busType);
             dbusRunner.run(conn, DbusConfig.getObjectPath());
-
-            conn.requestBusName(DbusConfig.getBusname());
-
-            logger.info("DBus daemon running on {} bus: {}", busType, DbusConfig.getBusname());
         } catch (DBusException e) {
-            logger.error("Dbus command failed", e);
-            throw new UnexpectedErrorException("Dbus command failed", e);
+            throw new UnexpectedErrorException("Dbus command failed: " + e.getMessage(), e);
+        } catch (UnsupportedOperationException e) {
+            throw new UserErrorException("Failed to connect to Dbus: " + e.getMessage(), e);
         }
+
+        try {
+            conn.requestBusName(DbusConfig.getBusname());
+        } catch (DBusException e) {
+            throw new UnexpectedErrorException("Dbus command failed, maybe signal-cli dbus daemon is already running: "
+                    + e.getMessage(), e);
+        }
+
+        logger.info("DBus daemon running on {} bus: {}", busType, DbusConfig.getBusname());
     }
 
     private Thread exportMultiAccountManager(
             final DBusConnection conn, final Manager m, final boolean noReceiveOnStart
     ) {
-        try {
-            final var objectPath = DbusConfig.getObjectPath(m.getSelfNumber());
-            return exportDbusObject(conn, objectPath, m, noReceiveOnStart);
-        } catch (DBusException e) {
-            logger.error("Failed to export object", e);
-            return null;
-        }
+        final var objectPath = DbusConfig.getObjectPath(m.getSelfNumber());
+        return exportDbusObject(conn, objectPath, m, noReceiveOnStart);
     }
 
     private Thread exportDbusObject(
             final DBusConnection conn, final String objectPath, final Manager m, final boolean noReceiveOnStart
-    ) throws DBusException {
+    ) {
         final var signal = new DbusSignalImpl(m, conn, objectPath, noReceiveOnStart);
-        conn.exportObject(signal);
         final var initThread = new Thread(signal::initObjects);
         initThread.setName("dbus-init");
         initThread.start();
-
-        logger.debug("Exported dbus object: " + objectPath);
 
         return initThread;
     }

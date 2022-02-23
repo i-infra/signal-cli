@@ -49,7 +49,7 @@ public class MessageSendLogStore implements AutoCloseable {
         this.cleanupThread = new Thread(() -> {
             try {
                 final var interval = Duration.ofHours(1).toMillis();
-                while (true) {
+                while (!Thread.interrupted()) {
                     try (final var connection = database.getConnection()) {
                         deleteOutdatedEntries(connection);
                     } catch (SQLException e) {
@@ -354,6 +354,8 @@ public class MessageSendLogStore implements AutoCloseable {
             final var rowCount = statement.executeUpdate();
             if (rowCount > 0) {
                 logger.debug("Removed {} outdated entries from the message send log", rowCount);
+            } else {
+                logger.trace("No outdated entries to be removed from message send log.");
             }
         }
     }

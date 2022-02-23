@@ -1,8 +1,8 @@
 package org.asamk.signal.manager.helper;
 
 import org.asamk.signal.manager.SignalDependencies;
-import org.asamk.signal.manager.api.TrustLevel;
 import org.asamk.signal.manager.api.PhoneNumberSharingMode;
+import org.asamk.signal.manager.api.TrustLevel;
 import org.asamk.signal.manager.groups.GroupId;
 import org.asamk.signal.manager.storage.SignalAccount;
 import org.asamk.signal.manager.storage.recipients.Contact;
@@ -129,18 +129,18 @@ public class StorageHelper {
         final var groupV1Record = record.getGroupV1().get();
         final var groupIdV1 = GroupId.v1(groupV1Record.getGroupId());
 
-        final var group = account.getGroupStore().getGroup(groupIdV1);
+        var group = account.getGroupStore().getGroup(groupIdV1);
         if (group == null) {
             try {
                 context.getGroupHelper().sendGroupInfoRequest(groupIdV1, account.getSelfRecipientId());
             } catch (Throwable e) {
                 logger.warn("Failed to send group request", e);
             }
+            group = account.getGroupStore().getOrCreateGroupV1(groupIdV1);
         }
-        final var groupV1 = account.getGroupStore().getOrCreateGroupV1(groupIdV1);
-        if (groupV1.isBlocked() != groupV1Record.isBlocked()) {
-            groupV1.setBlocked(groupV1Record.isBlocked());
-            account.getGroupStore().updateGroup(groupV1);
+        if (group != null && group.isBlocked() != groupV1Record.isBlocked()) {
+            group.setBlocked(groupV1Record.isBlocked());
+            account.getGroupStore().updateGroup(group);
         }
     }
 
@@ -188,8 +188,8 @@ public class StorageHelper {
             return;
         }
 
-        if (!accountRecord.getE164().equals(account.getAccount())) {
-            // TODO implement changed number handling
+        if (!accountRecord.getE164().equals(account.getNumber())) {
+            context.getAccountHelper().checkWhoAmiI();
         }
 
         account.getConfigurationStore().setReadReceipts(accountRecord.isReadReceiptsEnabled());

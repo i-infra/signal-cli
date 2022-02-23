@@ -45,6 +45,7 @@ import org.asamk.signal.manager.groups.GroupNotFoundException;
 import org.asamk.signal.manager.groups.GroupSendingNotAllowedException;
 import org.asamk.signal.manager.groups.LastGroupAdminException;
 import org.asamk.signal.manager.groups.NotAGroupMemberException;
+import org.asamk.signal.manager.helper.AccountFileUpdater;
 import org.asamk.signal.manager.helper.Context;
 import org.asamk.signal.manager.storage.SignalAccount;
 import org.asamk.signal.manager.storage.groups.GroupInfo;
@@ -69,7 +70,6 @@ import org.whispersystems.signalservice.api.messages.SignalServiceTypingMessage;
 import org.whispersystems.signalservice.api.util.DeviceNameUtil;
 import org.whispersystems.signalservice.api.util.InvalidNumberException;
 import org.whispersystems.signalservice.api.util.PhoneNumberFormatter;
-import org.whispersystems.signalservice.internal.util.DynamicCredentialsProvider;
 import org.whispersystems.signalservice.internal.util.Hex;
 import org.whispersystems.signalservice.internal.util.Util;
 
@@ -109,20 +109,18 @@ class ManagerImpl implements Manager {
     private final Set<ReceiveMessageHandler> weakHandlers = new HashSet<>();
     private final Set<ReceiveMessageHandler> messageHandlers = new HashSet<>();
     private final List<Runnable> closedListeners = new ArrayList<>();
+    private final List<Runnable> addressChangedListeners = new ArrayList<>();
     private final CompositeDisposable disposable = new CompositeDisposable();
 
     ManagerImpl(
             SignalAccount account,
             PathConfig pathConfig,
+            AccountFileUpdater accountFileUpdater,
             ServiceEnvironmentConfig serviceEnvironmentConfig,
             String userAgent
     ) {
         this.account = account;
 
-        final var credentialsProvider = new DynamicCredentialsProvider(account.getAci(),
-                account.getAccount(),
-                account.getPassword(),
-                account.getDeviceId());
         final var sessionLock = new SignalSessionLock() {
             private final ReentrantLock LEGACY_LOCK = new ReentrantLock();
 
@@ -134,15 +132,20 @@ class ManagerImpl implements Manager {
         };
         this.dependencies = new SignalDependencies(serviceEnvironmentConfig,
                 userAgent,
-                credentialsProvider,
-                account.getSignalProtocolStore(),
+                account.getCredentialsProvider(),
+                account.getSignalServiceDataStore(),
                 executor,
                 sessionLock);
         final var avatarStore = new AvatarStore(pathConfig.avatarsPath());
         final var attachmentStore = new AttachmentStore(pathConfig.attachmentsPath());
         final var stickerPackStore = new StickerPackStore(pathConfig.stickerPacksPath());
 
-        this.context = new Context(account, dependencies, avatarStore, attachmentStore, stickerPackStore);
+        this.context = new Context(account, (number, aci) -> {
+            accountFileUpdater.updateAccountIdentifiers(number, aci);
+            synchronized (addressChangedListeners) {
+                addressChangedListeners.forEach(Runnable::run);
+            }
+        }, dependencies, avatarStore, attachmentStore, stickerPackStore);
         this.context.getAccountHelper().setUnregisteredListener(this::close);
         this.context.getReceiveHelper().setAuthenticationFailureListener(this::close);
         this.context.getReceiveHelper().setCaughtUpWithOldMessagesListener(() -> {
@@ -168,7 +171,7 @@ class ManagerImpl implements Manager {
 
     @Override
     public String getSelfNumber() {
-        return account.getAccount();
+        return account.getNumber();
     }
 
     void checkAccountState() throws IOException {
@@ -179,7 +182,7 @@ class ManagerImpl implements Manager {
     public Map<String, Pair<String, UUID>> areUsersRegistered(Set<String> numbers) throws IOException {
         final var canonicalizedNumbers = numbers.stream().collect(Collectors.toMap(n -> n, n -> {
             try {
-                final var canonicalizedNumber = PhoneNumberFormatter.formatNumber(n, account.getAccount());
+                final var canonicalizedNumber = PhoneNumberFormatter.formatNumber(n, account.getNumber());
                 if (!canonicalizedNumber.equals(n)) {
                     logger.debug("Normalized number {} to {}.", n, canonicalizedNumber);
                 }
@@ -275,7 +278,7 @@ class ManagerImpl implements Manager {
     public List<Device> getLinkedDevices() throws IOException {
         var devices = dependencies.getAccountManager().getDevices();
         account.setMultiDevice(devices.size() > 1);
-        var identityKey = account.getIdentityKeyPair().getPrivateKey();
+        var identityKey = account.getAciIdentityKeyPair().getPrivateKey();
         return devices.stream().map(d -> {
             String deviceName = d.getName();
             if (deviceName != null) {
@@ -565,7 +568,7 @@ class ManagerImpl implements Manager {
             final var recipientId = context.getRecipientHelper().resolveRecipient(m.recipient());
             mentions.add(new SignalServiceDataMessage.Mention(context.getRecipientHelper()
                     .resolveSignalServiceAddress(recipientId)
-                    .getAci(), m.start(), m.length()));
+                    .getServiceId(), m.start(), m.length()));
         }
         return mentions;
     }
@@ -762,24 +765,17 @@ class ManagerImpl implements Manager {
         }
         receiveThread = new Thread(() -> {
             logger.debug("Starting receiving messages");
-            while (!Thread.interrupted()) {
-                try {
-                    context.getReceiveHelper().receiveMessages(Duration.ofMinutes(1), false, (envelope, e) -> {
-                        synchronized (messageHandlers) {
-                            Stream.concat(messageHandlers.stream(), weakHandlers.stream()).forEach(h -> {
-                                try {
-                                    h.handleMessage(envelope, e);
-                                } catch (Exception ex) {
-                                    logger.warn("Message handler failed, ignoring", ex);
-                                }
-                            });
+            context.getReceiveHelper().receiveMessagesContinuously((envelope, e) -> {
+                synchronized (messageHandlers) {
+                    Stream.concat(messageHandlers.stream(), weakHandlers.stream()).forEach(h -> {
+                        try {
+                            h.handleMessage(envelope, e);
+                        } catch (Throwable ex) {
+                            logger.warn("Message handler failed, ignoring", ex);
                         }
                     });
-                    break;
-                } catch (IOException e) {
-                    logger.warn("Receiving messages failed, retrying", e);
                 }
-            }
+            });
             logger.debug("Finished receiving messages");
             synchronized (messageHandlers) {
                 receiveThread = null;
@@ -813,7 +809,10 @@ class ManagerImpl implements Manager {
     }
 
     private void stopReceiveThread(final Thread thread) {
-        thread.interrupt();
+        if (context.getReceiveHelper().requestStopReceiveMessages()) {
+            logger.debug("Receive stop requested, interrupting read from server.");
+            thread.interrupt();
+        }
         try {
             thread.join();
         } catch (InterruptedException ignored) {
@@ -997,6 +996,13 @@ class ManagerImpl implements Manager {
     }
 
     @Override
+    public void addAddressChangedListener(final Runnable listener) {
+        synchronized (addressChangedListeners) {
+            addressChangedListeners.add(listener);
+        }
+    }
+
+    @Override
     public void addClosedListener(final Runnable listener) {
         synchronized (closedListeners) {
             closedListeners.add(listener);
@@ -1020,14 +1026,15 @@ class ManagerImpl implements Manager {
         dependencies.getSignalWebSocket().disconnect();
         disposable.dispose();
 
+        if (account != null) {
+            account.close();
+        }
+
         synchronized (closedListeners) {
             closedListeners.forEach(Runnable::run);
             closedListeners.clear();
         }
 
-        if (account != null) {
-            account.close();
-        }
         account = null;
     }
 }

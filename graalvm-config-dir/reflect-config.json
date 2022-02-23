@@ -855,35 +855,31 @@
   "allDeclaredConstructors":true
 },
 {
-  "name":"org.asamk.signal.manager.JsonStickerPack",
-  "allDeclaredFields":true,
-  "queryAllDeclaredMethods":true,
-  "queryAllDeclaredConstructors":true,
-  "methods":[
-    {"name":"<init>","parameterTypes":["java.lang.String","java.lang.String","org.asamk.signal.manager.JsonStickerPack$JsonSticker","java.util.List"] }, 
-    {"name":"author","parameterTypes":[] }, 
-    {"name":"cover","parameterTypes":[] }, 
-    {"name":"stickers","parameterTypes":[] }, 
-    {"name":"title","parameterTypes":[] }
-  ]
-},
-{
-  "name":"org.asamk.signal.manager.JsonStickerPack$JsonSticker",
-  "allDeclaredFields":true,
-  "queryAllDeclaredMethods":true,
-  "queryAllDeclaredConstructors":true,
-  "methods":[
-    {"name":"<init>","parameterTypes":["java.lang.Integer","java.lang.String","java.lang.String","java.lang.String"] }, 
-    {"name":"contentType","parameterTypes":[] }, 
-    {"name":"emoji","parameterTypes":[] }, 
-    {"name":"file","parameterTypes":[] }, 
-    {"name":"id","parameterTypes":[] }
-  ]
-},
-{
   "name":"org.asamk.signal.manager.api.PhoneNumberSharingMode",
   "allDeclaredFields":true,
   "queryAllDeclaredMethods":true
+},
+{
+  "name":"org.asamk.signal.manager.storage.accounts.AccountsStorage",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true,
+  "methods":[
+    {"name":"<init>","parameterTypes":["java.util.List"] }, 
+    {"name":"accounts","parameterTypes":[] }
+  ]
+},
+{
+  "name":"org.asamk.signal.manager.storage.accounts.AccountsStorage$Account",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true,
+  "methods":[
+    {"name":"<init>","parameterTypes":["java.lang.String","java.lang.String","java.lang.String"] }, 
+    {"name":"number","parameterTypes":[] }, 
+    {"name":"path","parameterTypes":[] }, 
+    {"name":"uuid","parameterTypes":[] }
+  ]
 },
 {
   "name":"org.asamk.signal.manager.storage.configuration.ConfigurationStore$Storage",
@@ -1080,6 +1076,32 @@
   "allDeclaredFields":true,
   "allDeclaredMethods":true,
   "allDeclaredConstructors":true
+},
+{
+  "name":"org.asamk.signal.manager.storage.stickerPacks.JsonStickerPack",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true,
+  "methods":[
+    {"name":"<init>","parameterTypes":["java.lang.String","java.lang.String","org.asamk.signal.manager.storage.stickerPacks.JsonStickerPack$JsonSticker","java.util.List"] }, 
+    {"name":"author","parameterTypes":[] }, 
+    {"name":"cover","parameterTypes":[] }, 
+    {"name":"stickers","parameterTypes":[] }, 
+    {"name":"title","parameterTypes":[] }
+  ]
+},
+{
+  "name":"org.asamk.signal.manager.storage.stickerPacks.JsonStickerPack$JsonSticker",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true,
+  "methods":[
+    {"name":"<init>","parameterTypes":["java.lang.Integer","java.lang.String","java.lang.String","java.lang.String"] }, 
+    {"name":"contentType","parameterTypes":[] }, 
+    {"name":"emoji","parameterTypes":[] }, 
+    {"name":"file","parameterTypes":[] }, 
+    {"name":"id","parameterTypes":[] }
+  ]
 },
 {
   "name":"org.asamk.signal.manager.storage.stickers.StickerStore",
@@ -1806,7 +1828,6 @@
     {"name":"isAnnouncementGroup_"}, 
     {"name":"memberCount_"}, 
     {"name":"pendingAdminApproval_"}, 
-    {"name":"publicKey_"}, 
     {"name":"revision_"}, 
     {"name":"title_"}
   ]
@@ -1913,6 +1934,17 @@
   "allDeclaredConstructors":true
 },
 {
+  "name":"org.whispersystems.signalservice.api.account.ChangePhoneNumberRequest",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true,
+  "methods":[
+    {"name":"getCode","parameterTypes":[] }, 
+    {"name":"getNumber","parameterTypes":[] }, 
+    {"name":"getRegistrationLock","parameterTypes":[] }
+  ]
+},
+{
   "name":"org.whispersystems.signalservice.api.groupsv2.CredentialResponse",
   "allDeclaredFields":true,
   "allDeclaredMethods":true,
@@ -1990,11 +2022,6 @@
   "allDeclaredFields":true,
   "queryAllDeclaredMethods":true,
   "queryAllDeclaredConstructors":true
-},
-{
-  "name":"org.whispersystems.signalservice.api.push.AccountIdentifier",
-  "allDeclaredFields":true,
-  "queryAllDeclaredMethods":true
 },
 {
   "name":"org.whispersystems.signalservice.api.push.SignedPreKeyEntity",
@@ -2282,16 +2309,19 @@
 {
   "name":"org.whispersystems.signalservice.internal.push.ProvisioningProtos$ProvisionMessage",
   "fields":[
+    {"name":"aciIdentityKeyPrivate_"}, 
+    {"name":"aciIdentityKeyPublic_"}, 
+    {"name":"aci_"}, 
     {"name":"bitField0_"}, 
-    {"name":"identityKeyPrivate_"}, 
-    {"name":"identityKeyPublic_"}, 
     {"name":"number_"}, 
+    {"name":"pniIdentityKeyPrivate_"}, 
+    {"name":"pniIdentityKeyPublic_"}, 
+    {"name":"pni_"}, 
     {"name":"profileKey_"}, 
     {"name":"provisioningCode_"}, 
     {"name":"provisioningVersion_"}, 
     {"name":"readReceipts_"}, 
-    {"name":"userAgent_"}, 
-    {"name":"uuid_"}
+    {"name":"userAgent_"}
   ]
 },
 {
@@ -2654,6 +2684,7 @@
   "fields":[
     {"name":"bitField0_"}, 
     {"name":"content_"}, 
+    {"name":"destinationUuid_"}, 
     {"name":"legacyMessage_"}, 
     {"name":"relay_"}, 
     {"name":"serverGuid_"}, 
@@ -2821,6 +2852,14 @@
   ]
 },
 {
+  "name":"org.whispersystems.signalservice.internal.push.SignalServiceProtos$SyncMessage$PniIdentity",
+  "fields":[
+    {"name":"bitField0_"}, 
+    {"name":"privateKey_"}, 
+    {"name":"publicKey_"}
+  ]
+},
+{
   "name":"org.whispersystems.signalservice.internal.push.SignalServiceProtos$SyncMessage$Read",
   "fields":[
     {"name":"bitField0_"}, 
@@ -2917,6 +2956,13 @@
   "allDeclaredFields":true,
   "allDeclaredMethods":true,
   "allDeclaredConstructors":true
+},
+{
+  "name":"org.whispersystems.signalservice.internal.push.WhoAmIResponse",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true,
+  "methods":[{"name":"<init>","parameterTypes":[] }]
 },
 {
   "name":"org.whispersystems.signalservice.internal.serialize.protos.AddressProto",

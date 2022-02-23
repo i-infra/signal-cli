@@ -18,9 +18,9 @@ import org.whispersystems.signalservice.api.groupsv2.GroupsV2Api;
 import org.whispersystems.signalservice.api.groupsv2.GroupsV2Operations;
 import org.whispersystems.signalservice.api.push.SignalServiceAddress;
 import org.whispersystems.signalservice.api.services.ProfileService;
+import org.whispersystems.signalservice.api.util.CredentialsProvider;
 import org.whispersystems.signalservice.api.util.UptimeSleepTimer;
 import org.whispersystems.signalservice.api.websocket.WebSocketFactory;
-import org.whispersystems.signalservice.internal.util.DynamicCredentialsProvider;
 import org.whispersystems.signalservice.internal.websocket.WebSocketConnection;
 
 import java.util.concurrent.ExecutorService;
@@ -34,7 +34,7 @@ public class SignalDependencies {
 
     private final ServiceEnvironmentConfig serviceEnvironmentConfig;
     private final String userAgent;
-    private final DynamicCredentialsProvider credentialsProvider;
+    private final CredentialsProvider credentialsProvider;
     private final SignalServiceDataStore dataStore;
     private final ExecutorService executor;
     private final SignalSessionLock sessionLock;
@@ -55,7 +55,7 @@ public class SignalDependencies {
     SignalDependencies(
             final ServiceEnvironmentConfig serviceEnvironmentConfig,
             final String userAgent,
-            final DynamicCredentialsProvider credentialsProvider,
+            final CredentialsProvider credentialsProvider,
             final SignalServiceDataStore dataStore,
             final ExecutorService executor,
             final SignalSessionLock sessionLock
@@ -66,6 +66,11 @@ public class SignalDependencies {
         this.dataStore = dataStore;
         this.executor = executor;
         this.sessionLock = sessionLock;
+    }
+
+    public void resetAfterAddressChange() {
+        this.messageSender = null;
+        this.cipher = null;
     }
 
     public ServiceEnvironmentConfig getServiceEnvironmentConfig() {
@@ -79,6 +84,17 @@ public class SignalDependencies {
                         userAgent,
                         getGroupsV2Operations(),
                         ServiceConfig.AUTOMATIC_NETWORK_RETRY));
+    }
+
+    public SignalServiceAccountManager createUnauthenticatedAccountManager(String number, String password) {
+        return new SignalServiceAccountManager(getServiceEnvironmentConfig().getSignalServiceConfiguration(),
+                null,
+                null,
+                number,
+                SignalServiceAddress.DEFAULT_DEVICE_ID,
+                password,
+                userAgent,
+                ServiceConfig.AUTOMATIC_NETWORK_RETRY);
     }
 
     public GroupsV2Api getGroupsV2Api() {
@@ -176,7 +192,7 @@ public class SignalDependencies {
             final var certificateValidator = new CertificateValidator(serviceEnvironmentConfig.getUnidentifiedSenderTrustRoot());
             final var address = new SignalServiceAddress(credentialsProvider.getAci(), credentialsProvider.getE164());
             final var deviceId = credentialsProvider.getDeviceId();
-            cipher = new SignalServiceCipher(address, deviceId, dataStore, sessionLock, certificateValidator);
+            cipher = new SignalServiceCipher(address, deviceId, dataStore.aci(), sessionLock, certificateValidator);
         });
     }
 

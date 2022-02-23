@@ -50,6 +50,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -169,7 +170,7 @@ public class DbusManagerImpl implements Manager {
         return signal.listDevices().stream().map(d -> {
             final var device = getRemoteObject(d.getObjectPath(),
                     Signal.Device.class).GetAll("org.asamk.Signal.Device");
-            return new Device(((Long) device.get("Id").getValue()).intValue(),
+            return new Device((Integer) device.get("Id").getValue(),
                     (String) device.get("Name").getValue(),
                     (long) device.get("Created").getValue(),
                     (long) device.get("LastSeen").getValue(),
@@ -540,7 +541,14 @@ public class DbusManagerImpl implements Manager {
 
     @Override
     public List<Pair<RecipientAddress, Contact>> getContacts() {
-        throw new UnsupportedOperationException();
+        return signal.listNumbers().stream().map(n -> {
+            final var contactName = signal.getContactName(n);
+            if (contactName.length() == 0) {
+                return null;
+            }
+            return new Pair<>(new RecipientAddress(null, n),
+                    new Contact(contactName, null, 0, signal.isContactBlocked(n), false));
+        }).filter(Objects::nonNull).toList();
     }
 
     @Override
@@ -619,6 +627,10 @@ public class DbusManagerImpl implements Manager {
     @Override
     public boolean trustIdentityAllKeys(final RecipientIdentifier.Single recipient) {
         throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void addAddressChangedListener(final Runnable listener) {
     }
 
     @Override

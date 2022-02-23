@@ -2,8 +2,6 @@ package org.asamk.signal.manager.helper;
 
 import org.asamk.signal.manager.Manager;
 import org.asamk.signal.manager.SignalDependencies;
-import org.asamk.signal.manager.api.TrustLevel;
-import org.asamk.signal.manager.api.UntrustedIdentityException;
 import org.asamk.signal.manager.actions.HandleAction;
 import org.asamk.signal.manager.actions.RefreshPreKeysAction;
 import org.asamk.signal.manager.actions.RenewSessionAction;
@@ -12,6 +10,7 @@ import org.asamk.signal.manager.actions.RetrieveProfileAction;
 import org.asamk.signal.manager.actions.RetrieveStorageDataAction;
 import org.asamk.signal.manager.actions.SendGroupInfoAction;
 import org.asamk.signal.manager.actions.SendGroupInfoRequestAction;
+import org.asamk.signal.manager.actions.SendPniIdentityKeyAction;
 import org.asamk.signal.manager.actions.SendReceiptAction;
 import org.asamk.signal.manager.actions.SendRetryMessageRequestAction;
 import org.asamk.signal.manager.actions.SendSyncBlockedListAction;
@@ -22,6 +21,8 @@ import org.asamk.signal.manager.actions.SendSyncKeysAction;
 import org.asamk.signal.manager.api.MessageEnvelope;
 import org.asamk.signal.manager.api.Pair;
 import org.asamk.signal.manager.api.StickerPackId;
+import org.asamk.signal.manager.api.TrustLevel;
+import org.asamk.signal.manager.api.UntrustedIdentityException;
 import org.asamk.signal.manager.groups.GroupId;
 import org.asamk.signal.manager.groups.GroupNotFoundException;
 import org.asamk.signal.manager.groups.GroupUtils;
@@ -31,6 +32,7 @@ import org.asamk.signal.manager.storage.groups.GroupInfoV1;
 import org.asamk.signal.manager.storage.recipients.Profile;
 import org.asamk.signal.manager.storage.recipients.RecipientId;
 import org.asamk.signal.manager.storage.stickers.Sticker;
+import org.asamk.signal.manager.util.KeyUtils;
 import org.signal.libsignal.metadata.ProtocolInvalidKeyException;
 import org.signal.libsignal.metadata.ProtocolInvalidKeyIdException;
 import org.signal.libsignal.metadata.ProtocolInvalidMessageException;
@@ -228,7 +230,10 @@ public final class IncomingMessageHandler {
 
         if (content.getDecryptionErrorMessage().isPresent()) {
             var message = content.getDecryptionErrorMessage().get();
-            logger.debug("Received a decryption error message (resend request for {})", message.getTimestamp());
+            logger.debug("Received a decryption error message from {}.{} (resend request for {})",
+                    sender,
+                    senderDeviceId,
+                    message.getTimestamp());
             if (message.getDeviceId() == account.getDeviceId()) {
                 handleDecryptionErrorMessage(actions, sender, senderDeviceId, message);
             } else {
@@ -337,6 +342,9 @@ public final class IncomingMessageHandler {
             if (rm.isConfigurationRequest()) {
                 actions.add(SendSyncConfigurationAction.create());
             }
+            if (rm.isPniIdentityRequest()) {
+                actions.add(SendPniIdentityKeyAction.create());
+            }
         }
         if (syncMessage.getGroups().isPresent()) {
             logger.warn("Received a group v1 sync message, that can't be handled anymore, ignoring.");
@@ -436,6 +444,11 @@ public final class IncomingMessageHandler {
                 configurationStore.setUnidentifiedDeliveryIndicators(configurationMessage.getUnidentifiedDeliveryIndicators()
                         .get());
             }
+        }
+        if (syncMessage.getPniIdentity().isPresent()) {
+            final var pniIdentity = syncMessage.getPniIdentity().get();
+            account.setPniIdentityKeyPair(KeyUtils.getIdentityKeyPair(pniIdentity.getPublicKey().toByteArray(),
+                    pniIdentity.getPrivateKey().toByteArray()));
         }
         return actions;
     }
