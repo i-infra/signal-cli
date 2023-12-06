@@ -28,6 +28,8 @@ dependencies {
     implementation(libs.slf4j.api)
     implementation(libs.sqlite)
     implementation(libs.hikari)
+    implementation(libs.p6spy)
+    implementation(libs.okhttp)
 
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.launcher)

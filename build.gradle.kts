@@ -14,6 +14,7 @@ java {
 
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(21))
+        vendor = JvmVendorSpec.ADOPTIUM
     }
 }
 
@@ -40,6 +41,7 @@ graalvmNative {
 }
 
 dependencies {
+    implementation(libs.okhttp)
     implementation(libs.bouncycastle)
     implementation(libs.jackson.databind)
     implementation(libs.argparse4j)

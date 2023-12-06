@@ -18,7 +18,10 @@ dependencyResolutionManagement {
 
             library("signalservice", "com.github.turasa", "signal-service-java").version("2.15.3_unofficial_88")
             library("sqlite", "org.xerial", "sqlite-jdbc").version("3.44.0.0")
+            library("p6spy", "p6spy", "p6spy").version("3.9.1")
+
             library("hikari", "com.zaxxer", "HikariCP").version("5.1.0")
+            library("okhttp", "com.squareup.okhttp3", "logging-interceptor").version("4.11.0")
             library("junit.jupiter", "org.junit.jupiter", "junit-jupiter").version("5.10.1")
             library("junit.launcher", "org.junit.platform", "junit-platform-launcher").version("1.10.1")
         }
