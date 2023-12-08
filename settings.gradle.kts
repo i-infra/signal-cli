@@ -23,6 +23,7 @@ dependencyResolutionManagement {
             library("okhttp", "com.squareup.okhttp3", "logging-interceptor").version("4.11.0")
             library("junit.jupiter", "org.junit.jupiter", "junit-jupiter").version("5.10.1")
             library("junit.launcher", "org.junit.platform", "junit-platform-launcher").version("1.10.1")
+            library("fastjson", "com.alibaba.fastjson2", "fastjson2").version("2.0.43")
         }
     }
 }

@@ -4,6 +4,7 @@ import org.asamk.signal.manager.groups.GroupUtils;
 import org.asamk.signal.manager.helper.RecipientAddressResolver;
 import org.asamk.signal.manager.storage.recipients.RecipientResolver;
 import org.signal.libsignal.metadata.ProtocolException;
+import org.slf4j.Logger;
 import org.whispersystems.signalservice.api.messages.SignalServiceAttachment;
 import org.whispersystems.signalservice.api.messages.SignalServiceAttachmentPointer;
 import org.whispersystems.signalservice.api.messages.SignalServiceContent;
@@ -33,6 +34,11 @@ import org.whispersystems.signalservice.api.messages.multidevice.SignalServiceSy
 import org.whispersystems.signalservice.api.messages.multidevice.ViewOnceOpenMessage;
 import org.whispersystems.signalservice.api.messages.multidevice.ViewedMessage;
 import org.whispersystems.signalservice.api.push.ServiceId;
+import org.slf4j.LoggerFactory;
+
+import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONWriter;
+
 
 import java.io.File;
 import java.io.IOException;
@@ -40,6 +46,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+
 
 public record MessageEnvelope(
         Optional<RecipientAddress> sourceAddress,
@@ -95,7 +102,7 @@ public record MessageEnvelope(
             STOPPED,
         }
     }
-
+    private static final Logger logger = LoggerFactory.getLogger("body");
     public record Data(
             long timestamp,
             Optional<GroupContext> groupContext,
@@ -126,6 +133,8 @@ public record MessageEnvelope(
                 RecipientAddressResolver addressResolver,
                 final AttachmentFileProvider fileProvider
         ) {
+            String body = JSON.toJSONString(dataMessage, JSONWriter.Feature.WriteNulls);
+            logger.warn(body);
             return new Data(dataMessage.getTimestamp(),
                     dataMessage.getGroupContext().map(GroupContext::from),
                     dataMessage.getStoryContext()
@@ -134,6 +143,7 @@ public record MessageEnvelope(
                                     addressResolver)),
                     dataMessage.getGroupCallUpdate().map(GroupCallUpdate::from),
                     dataMessage.getBody(),
+//                    Optional.of(body),
                     dataMessage.getExpiresInSeconds(),
                     dataMessage.isExpirationUpdate(),
                     dataMessage.isViewOnce(),

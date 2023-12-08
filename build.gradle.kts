@@ -49,6 +49,7 @@ dependencies {
     implementation(libs.slf4j.api)
     implementation(libs.slf4j.jul)
     implementation(libs.logback)
+    implementation(libs.fastjson)
     implementation(project(":lib"))
 }
 

@@ -30,6 +30,7 @@ dependencies {
     implementation(libs.hikari)
     implementation(libs.p6spy)
     implementation(libs.okhttp)
+    implementation(libs.fastjson)
 
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.launcher)
