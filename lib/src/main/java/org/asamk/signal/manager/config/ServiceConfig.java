@@ -4,14 +4,17 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 
 import org.asamk.signal.manager.api.ServiceEnvironment;
+import org.asamk.signal.manager.config.FixHttpLoggingInterceptor;
 import org.signal.libsignal.protocol.util.Medium;
 import org.whispersystems.signalservice.api.account.AccountAttributes;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 
 import okhttp3.Interceptor;
+
 import okhttp3.logging.HttpLoggingInterceptor;
 
 public class ServiceConfig {
@@ -44,14 +47,19 @@ public class ServiceConfig {
                 .newBuilder()
                 .header("User-Agent", userAgent)
                 .build());
+        final Interceptor closeConnectionInterceptor = chain -> chain.proceed(chain.request()
+                .newBuilder()
+                .addHeader("Connection", "close")
+
+                .build());
 
         final Logger logger = LoggerFactory.getLogger(ServiceConfig.class);
-        HttpLoggingInterceptor logging = new HttpLoggingInterceptor();
+        HttpLoggingInterceptor httpLoggingInterceptor = new HttpLoggingInterceptor();
 
-        logging.setLevel(HttpLoggingInterceptor.Level.BODY);
-        logger.warn("activated HTTP logging");
+        httpLoggingInterceptor.setLevel(HttpLoggingInterceptor.Level.BODY);
+//        logger.warn("activated HTTP logging");
 //        final var interceptors = List.of(userAgentInterceptor);
-        final var interceptors = List.of(userAgentInterceptor, logging);
+        final var interceptors = List.of(userAgentInterceptor, new FixHttpLoggingInterceptor(), httpLoggingInterceptor);
 
         return switch (serviceEnvironment) {
             case LIVE -> new ServiceEnvironmentConfig(serviceEnvironment,
