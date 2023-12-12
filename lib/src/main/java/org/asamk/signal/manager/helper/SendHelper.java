@@ -1,5 +1,8 @@
 package org.asamk.signal.manager.helper;
 
+import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONWriter;
+
 import org.asamk.signal.manager.api.Contact;
 import org.asamk.signal.manager.api.GroupId;
 import org.asamk.signal.manager.api.GroupNotFoundException;
@@ -38,6 +41,7 @@ import org.whispersystems.signalservice.api.push.exceptions.NotFoundException;
 import org.whispersystems.signalservice.api.push.exceptions.ProofRequiredException;
 import org.whispersystems.signalservice.api.push.exceptions.RateLimitException;
 import org.whispersystems.signalservice.api.push.exceptions.UnregisteredUserException;
+import org.whispersystems.signalservice.internal.push.DataMessage;
 import org.whispersystems.signalservice.internal.push.exceptions.InvalidUnidentifiedAccessHeaderException;
 import org.whispersystems.signalservice.internal.push.http.PartialSendCompleteListener;
 
@@ -91,8 +95,9 @@ public class SendHelper {
             final var profileKey = account.getProfileKey().serialize();
             messageBuilder.withProfileKey(profileKey);
         }
-
         final var message = messageBuilder.build();
+        String body = JSON.toJSONString(message, JSONWriter.Feature.WriteNulls);
+        logger.warn(body);
         return sendMessage(message, recipientId, editTargetTimestamp);
     }
 
